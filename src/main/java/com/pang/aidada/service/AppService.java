@@ -11,8 +11,6 @@ import javax.servlet.http.HttpServletRequest;
 
 /**
  * 应用服务
- *
-
  */
 public interface AppService extends IService<App> {
 

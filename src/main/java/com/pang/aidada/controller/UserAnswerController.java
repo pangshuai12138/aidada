@@ -1,5 +1,6 @@
 package com.pang.aidada.controller;
 
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.pang.aidada.annotation.AuthCheck;
 import com.pang.aidada.common.BaseResponse;
@@ -13,9 +14,12 @@ import com.pang.aidada.model.dto.userAnswer.UserAnswerAddRequest;
 import com.pang.aidada.model.dto.userAnswer.UserAnswerEditRequest;
 import com.pang.aidada.model.dto.userAnswer.UserAnswerQueryRequest;
 import com.pang.aidada.model.dto.userAnswer.UserAnswerUpdateRequest;
+import com.pang.aidada.model.entity.App;
 import com.pang.aidada.model.entity.UserAnswer;
 import com.pang.aidada.model.entity.User;
+import com.pang.aidada.model.enums.ReviewStatusEnum;
 import com.pang.aidada.model.vo.UserAnswerVO;
+import com.pang.aidada.service.AppService;
 import com.pang.aidada.service.UserAnswerService;
 import com.pang.aidada.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 用户结果接口
@@ -37,12 +42,15 @@ public class UserAnswerController {
     private UserAnswerService userAnswerService;
 
     @Resource
+    private AppService appService;
+
+    @Resource
     private UserService userService;
 
     // region 增删改查
 
     /**
-     * 创建用户结果
+     * 创建用户答案
      *
      * @param userAnswerAddRequest
      * @param request
@@ -51,12 +59,21 @@ public class UserAnswerController {
     @PostMapping("/add")
     public BaseResponse<Long> addUserAnswer(@RequestBody UserAnswerAddRequest userAnswerAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(userAnswerAddRequest == null, ErrorCode.PARAMS_ERROR);
-        // todo 在此处将实体类和 DTO 进行转换
+        // 在此处将实体类和 DTO 进行转换
         UserAnswer userAnswer = new UserAnswer();
         BeanUtils.copyProperties(userAnswerAddRequest, userAnswer);
+        List<String> choices = userAnswerAddRequest.getChoices();
+        userAnswer.setChoices(JSONUtil.toJsonStr(choices));
         // 数据校验
         userAnswerService.validUserAnswer(userAnswer, true);
-        // todo 填充默认值
+        // 判断 app 是否存在
+        Long appId = userAnswerAddRequest.getAppId();
+        App app = appService.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
+        if (!ReviewStatusEnum.PASS.equals(ReviewStatusEnum.getEnumByValue(app.getReviewStatus()))) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "应用未通过审核，无法答题");
+        }
+        // 填充默认值
         User loginUser = userService.getLoginUser(request);
         userAnswer.setUserId(loginUser.getId());
         // 写入数据库
@@ -64,11 +81,21 @@ public class UserAnswerController {
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         // 返回新写入的数据 id
         long newUserAnswerId = userAnswer.getId();
+        // 调用评分模块
+        try {
+            // TODO 待实现调用评分模块
+            UserAnswer userAnswerWithResult = new UserAnswer();
+            userAnswerWithResult.setId(newUserAnswerId);
+            userAnswerService.updateById(userAnswerWithResult);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "评分错误");
+        }
         return ResultUtils.success(newUserAnswerId);
     }
 
     /**
-     * 删除用户结果
+     * 删除用户答案
      *
      * @param deleteRequest
      * @param request
@@ -95,7 +122,7 @@ public class UserAnswerController {
     }
 
     /**
-     * 更新用户结果（仅管理员可用）
+     * 更新用户答案（仅管理员可用）
      *
      * @param userAnswerUpdateRequest
      * @return
@@ -106,9 +133,11 @@ public class UserAnswerController {
         if (userAnswerUpdateRequest == null || userAnswerUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // todo 在此处将实体类和 DTO 进行转换
+        // 在此处将实体类和 DTO 进行转换
         UserAnswer userAnswer = new UserAnswer();
         BeanUtils.copyProperties(userAnswerUpdateRequest, userAnswer);
+        List<String> choices = userAnswerUpdateRequest.getChoices();
+        userAnswer.setChoices(JSONUtil.toJsonStr(choices));
         // 数据校验
         userAnswerService.validUserAnswer(userAnswer, false);
         // 判断是否存在
@@ -122,7 +151,7 @@ public class UserAnswerController {
     }
 
     /**
-     * 根据 id 获取用户结果（封装类）
+     * 根据 id 获取用户答案（封装类）
      *
      * @param id
      * @return
@@ -138,7 +167,7 @@ public class UserAnswerController {
     }
 
     /**
-     * 分页获取用户结果列表（仅管理员可用）
+     * 分页获取用户答案列表（仅管理员可用）
      *
      * @param userAnswerQueryRequest
      * @return
@@ -155,7 +184,7 @@ public class UserAnswerController {
     }
 
     /**
-     * 分页获取用户结果列表（封装类）
+     * 分页获取用户答案列表（封装类）
      *
      * @param userAnswerQueryRequest
      * @param request
@@ -163,7 +192,7 @@ public class UserAnswerController {
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<UserAnswerVO>> listUserAnswerVOByPage(@RequestBody UserAnswerQueryRequest userAnswerQueryRequest,
-                                                               HttpServletRequest request) {
+                                                                   HttpServletRequest request) {
         long current = userAnswerQueryRequest.getCurrent();
         long size = userAnswerQueryRequest.getPageSize();
         // 限制爬虫
@@ -176,7 +205,7 @@ public class UserAnswerController {
     }
 
     /**
-     * 分页获取当前登录用户创建的用户结果列表
+     * 分页获取当前登录用户创建的用户答案列表
      *
      * @param userAnswerQueryRequest
      * @param request
@@ -184,7 +213,7 @@ public class UserAnswerController {
      */
     @PostMapping("/my/list/page/vo")
     public BaseResponse<Page<UserAnswerVO>> listMyUserAnswerVOByPage(@RequestBody UserAnswerQueryRequest userAnswerQueryRequest,
-                                                                 HttpServletRequest request) {
+                                                                     HttpServletRequest request) {
         ThrowUtils.throwIf(userAnswerQueryRequest == null, ErrorCode.PARAMS_ERROR);
         // 补充查询条件，只查询当前登录用户的数据
         User loginUser = userService.getLoginUser(request);
@@ -201,7 +230,7 @@ public class UserAnswerController {
     }
 
     /**
-     * 编辑用户结果（给用户使用）
+     * 编辑用户答案（给用户使用）
      *
      * @param userAnswerEditRequest
      * @param request
@@ -212,9 +241,11 @@ public class UserAnswerController {
         if (userAnswerEditRequest == null || userAnswerEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        // todo 在此处将实体类和 DTO 进行转换
+        // 在此处将实体类和 DTO 进行转换
         UserAnswer userAnswer = new UserAnswer();
         BeanUtils.copyProperties(userAnswerEditRequest, userAnswer);
+        List<String> choices = userAnswerEditRequest.getChoices();
+        userAnswer.setChoices(JSONUtil.toJsonStr(choices));
         // 数据校验
         userAnswerService.validUserAnswer(userAnswer, false);
         User loginUser = userService.getLoginUser(request);
