@@ -102,5 +102,21 @@ public class FileController {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型错误");
             }
         }
+        if (FileUploadBizEnum.SCORING_RESULT_PICTURE.equals(fileUploadBizEnum)) {
+            if (fileSize > ONE_M * 3) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 3M");
+            }
+            if (!Arrays.asList("jpeg", "jpg", "svg", "png", "webp").contains(fileSuffix)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型错误");
+            }
+        }
+        if (FileUploadBizEnum.APP_ICON.equals(fileUploadBizEnum)) {
+            if (fileSize > ONE_M) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 1M");
+            }
+            if (!Arrays.asList("jpeg", "jpg", "svg", "png", "webp").contains(fileSuffix)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型错误");
+            }
+        }
     }
 }
