@@ -245,4 +245,26 @@ public class QuestionController {
     }
 
     // endregion
+
+    /**
+     * AI生成题目
+     *
+     * @param aiGenerateQuestionRequest
+     * @return
+     */
+    @PostMapping("/ai_generate")
+    public BaseResponse<List<QuestionContentDTO>> aiGenerateQuestion(
+            @RequestBody AiGenerateQuestionRequest aiGenerateQuestionRequest) {
+        // 参数校验
+        ThrowUtils.throwIf(aiGenerateQuestionRequest == null, ErrorCode.PARAMS_ERROR);
+        // 获取参数
+        Long appId = aiGenerateQuestionRequest.getAppId();
+        int questionNumber = aiGenerateQuestionRequest.getQuestionNumber();
+        int optionNumber = aiGenerateQuestionRequest.getOptionNumber();
+        // 获取应用信息
+        App app = appService.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
+
+        return ResultUtils.success(questionService.aiGenerateQuestion(app,questionNumber,optionNumber));
+    }
 }

@@ -3,11 +3,14 @@ package com.pang.aidada.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.pang.aidada.model.dto.question.QuestionContentDTO;
 import com.pang.aidada.model.dto.question.QuestionQueryRequest;
+import com.pang.aidada.model.entity.App;
 import com.pang.aidada.model.entity.Question;
 import com.pang.aidada.model.vo.QuestionVO;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 题目服务
@@ -49,4 +52,14 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     Page<QuestionVO> getQuestionVOPage(Page<Question> questionPage, HttpServletRequest request);
+
+    /**
+     * AI生成题目
+     *
+     * @param app
+     * @param questionNumber
+     * @param optionNumber
+     * @return
+     */
+    List<QuestionContentDTO> aiGenerateQuestion(App app, int questionNumber, int optionNumber);
 }
