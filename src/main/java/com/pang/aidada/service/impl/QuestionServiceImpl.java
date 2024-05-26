@@ -1,12 +1,14 @@
 package com.pang.aidada.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pang.aidada.common.ErrorCode;
 import com.pang.aidada.constant.CommonConstant;
+import com.pang.aidada.exception.BusinessException;
 import com.pang.aidada.exception.ThrowUtils;
 import com.pang.aidada.manager.AiManager;
 import com.pang.aidada.mapper.QuestionMapper;
@@ -22,17 +24,20 @@ import com.pang.aidada.service.AppService;
 import com.pang.aidada.service.QuestionService;
 import com.pang.aidada.service.UserService;
 import com.pang.aidada.utils.SqlUtils;
+import com.zhipu.oapi.service.v4.model.ModelData;
+import io.reactivex.Flowable;
+import io.reactivex.Scheduler;
+import io.reactivex.schedulers.Schedulers;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -231,6 +236,69 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         String json = result.substring(start, end + 1);
         List<QuestionContentDTO> questionContentDTOList = JSONUtil.toList(json, QuestionContentDTO.class);
         return questionContentDTOList;
+    }
+
+    @Override
+    public SseEmitter aiGenerateQuestionSSE(App app, int questionNumber, int optionNumber) {
+        // 调用AI接口前建立SSE连接对象，0 表示不超时
+        SseEmitter emitter = new SseEmitter(0L);
+
+        // AI 生成，sse 流式返回
+        // 封装 Prompt
+        String userMessage = getGenerateQuestionUserMessage(app, questionNumber, optionNumber);
+        Flowable<ModelData> modelDataFlowable = aiManager.doStreamRequest(GENERATE_QUESTION_SYSTEM_MESSAGE, userMessage, null);
+
+        // 左括号计数器，除了默认值外，当回归为 0 时，表示左括号等于右括号，可以截取
+        AtomicInteger counter = new AtomicInteger(0);
+        // 拼接完整题目
+        StringBuilder contentBuilder = new StringBuilder();
+
+        modelDataFlowable
+                // 异步线程池执行
+                .observeOn(Schedulers.io())
+                // 获取流返回的数据
+                .map(modelData -> modelData.getChoices().get(0).getDelta().getContent())
+                // 将所有的空格、换行符替换为空字符串
+                .map(message -> message.replace("\\s",""))
+                // 过滤掉空字符串
+                .filter(StrUtil::isNotBlank)
+                // 将字符串转换为 List<Character>
+                .flatMap(message -> {
+                    List<Character> characters = new ArrayList<>();
+                    for(char c : message.toCharArray()){
+                        characters.add(c);
+                    }
+                    return  Flowable.fromIterable(characters);
+                })
+                // 获取流数据后开始进行处理
+                .doOnNext(c -> {
+                    // 识别第一个 [ 表示开始 AI 传输 json 数据，打开 flag 开始拼接 json 数组
+                    if(c == '{'){
+                        counter.addAndGet(1);
+                    }
+                    // 获取有效的流数据
+                    if(counter.get() > 0 ){
+                        contentBuilder.append(c);
+                    }
+                    if(c == '}'){
+                        counter.addAndGet(-1);
+                        if(counter.get() == 0){
+                            // 累积单套题目满足 json 格式后，sse 推送至前端
+                            // sse 需要压缩成当行 json，sse 无法识别换行
+                            emitter.send(JSONUtil.toJsonStr(contentBuilder.toString()));
+                            // 重置 contentBuilder
+                            contentBuilder.setLength(0);
+                        }
+                    }
+                })
+                .doOnError((e) -> {
+                    log.error("SSE error {}",e);
+                    throw new BusinessException(ErrorCode.SYSTEM_ERROR);
+                })
+                .doOnComplete(emitter::complete)
+                .subscribe();
+
+        return emitter;
     }
 
     /**

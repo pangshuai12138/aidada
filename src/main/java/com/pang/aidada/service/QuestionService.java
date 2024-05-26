@@ -8,6 +8,7 @@ import com.pang.aidada.model.dto.question.QuestionQueryRequest;
 import com.pang.aidada.model.entity.App;
 import com.pang.aidada.model.entity.Question;
 import com.pang.aidada.model.vo.QuestionVO;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -62,4 +63,14 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     List<QuestionContentDTO> aiGenerateQuestion(App app, int questionNumber, int optionNumber);
+
+    /**
+     * 流式AI生成题目
+     *
+     * @param app
+     * @param questionNumber
+     * @param optionNumber
+     * @return
+     */
+    SseEmitter aiGenerateQuestionSSE(App app, int questionNumber, int optionNumber);
 }
