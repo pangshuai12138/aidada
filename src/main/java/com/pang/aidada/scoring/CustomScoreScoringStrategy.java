@@ -3,6 +3,8 @@ package com.pang.aidada.scoring;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pang.aidada.annotation.ScoringStrategyConfig;
+import com.pang.aidada.common.ErrorCode;
+import com.pang.aidada.exception.BusinessException;
 import com.pang.aidada.model.dto.question.QuestionContentDTO;
 import com.pang.aidada.model.entity.App;
 import com.pang.aidada.model.entity.Question;
@@ -30,6 +32,11 @@ public class CustomScoreScoringStrategy implements ScoringStrategy {
 
     @Override
     public UserAnswer doScore(List<String> choices, App app) throws Exception {
+        // 判断答案是否为空
+        if (choices == null || choices.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"选项不能为空");
+        }
+
         Long appId = app.getId();
         // 1. 根据 id 查询到题目和题目结果信息（按分数降序排序）
         Question question = questionService.getOne(
@@ -45,6 +52,11 @@ public class CustomScoreScoringStrategy implements ScoringStrategy {
         int totalScore = 0;
         QuestionVO questionVO = QuestionVO.objToVo(question);
         List<QuestionContentDTO> questionContent = questionVO.getQuestionContent();
+
+        // 判断答案数量是否与题目数量一致
+        if(choices.size() != questionContent.size()){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"用户答案数量与题目数量不一致");
+        }
 
         // 遍历题目列表
         for (QuestionContentDTO questionContentDTO : questionContent) {
