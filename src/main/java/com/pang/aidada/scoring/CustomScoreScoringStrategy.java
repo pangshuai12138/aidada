@@ -42,11 +42,11 @@ public class CustomScoreScoringStrategy implements ScoringStrategy {
         Question question = questionService.getOne(
                 Wrappers.lambdaQuery(Question.class).eq(Question::getAppId, appId)
         );
-        List<ScoringResult> scoringResultList = scoringResultService.list(
+        /*List<ScoringResult> scoringResultList = scoringResultService.list(
                 Wrappers.lambdaQuery(ScoringResult.class)
                         .eq(ScoringResult::getAppId, appId)
                         .orderByDesc(ScoringResult::getResultScoreRange)
-        );
+        );*/
 
         // 2. 统计用户的总得分
         int totalScore = 0;
@@ -75,13 +75,22 @@ public class CustomScoreScoringStrategy implements ScoringStrategy {
         }
 
         // 3. 遍历得分结果，找到第一个用户分数大于得分范围的结果，作为最终结果
-        ScoringResult maxScoringResult = scoringResultList.get(0);
+        /*ScoringResult maxScoringResult = scoringResultList.get(0);
         for (ScoringResult scoringResult : scoringResultList) {
             if (totalScore >= scoringResult.getResultScoreRange()) {
                 maxScoringResult = scoringResult;
                 break;
             }
-        }
+        }*/
+        // 第二种方式获取得分结果：直接通过SQL去评分结果表获取得分结果（resultScoreRange >= totalScore）
+        // 但是要求评分结果集必须出现0分和满分的结果集，否则会存在查询结果为空或者结果不正确的情况
+        ScoringResult maxScoringResult = scoringResultService.getOne(
+                Wrappers.lambdaQuery(ScoringResult.class)
+                        .eq(ScoringResult::getAppId, appId)
+                        .ge(ScoringResult::getResultScoreRange, totalScore)
+                        .orderByAsc(ScoringResult::getResultScoreRange)
+                        .last("limit 1")
+        );
 
         // 4. 构造返回值，填充答案对象的属性
         UserAnswer userAnswer = new UserAnswer();
