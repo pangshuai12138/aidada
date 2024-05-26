@@ -19,6 +19,7 @@ import com.pang.aidada.model.entity.UserAnswer;
 import com.pang.aidada.model.entity.User;
 import com.pang.aidada.model.enums.ReviewStatusEnum;
 import com.pang.aidada.model.vo.UserAnswerVO;
+import com.pang.aidada.scoring.ScoringStrategyExecutor;
 import com.pang.aidada.service.AppService;
 import com.pang.aidada.service.UserAnswerService;
 import com.pang.aidada.service.UserService;
@@ -46,6 +47,9 @@ public class UserAnswerController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private ScoringStrategyExecutor scoringStrategyExecutor;
 
     // region 增删改查
 
@@ -83,9 +87,9 @@ public class UserAnswerController {
         long newUserAnswerId = userAnswer.getId();
         // 调用评分模块
         try {
-            // TODO 待实现调用评分模块
-            UserAnswer userAnswerWithResult = new UserAnswer();
+            UserAnswer userAnswerWithResult = scoringStrategyExecutor.doScore(choices,app);
             userAnswerWithResult.setId(newUserAnswerId);
+            // 更新用户答案
             userAnswerService.updateById(userAnswerWithResult);
         } catch (Exception e) {
             e.printStackTrace();
