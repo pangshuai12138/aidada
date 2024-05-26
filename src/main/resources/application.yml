@@ -73,3 +73,6 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.pang.aidada.controller
+# AI 配置
+ai:
+  apiKey: XXX  # 需要去智谱官网获取

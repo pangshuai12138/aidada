@@ -9,6 +9,7 @@ import com.zhipu.oapi.service.v4.model.ModelApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,10 +19,11 @@ import java.util.List;
 @SpringBootTest
 public class ZhiPuAiTest {
 
+    @Resource
+    private ClientV4 clientV4;
+
     @Test
     public void testAi() {
-        // 创建一个ClientV4实例
-        ClientV4 client = new ClientV4.Builder("ccff36e1efdb5de299596452b29a391a.EKTPklUL4tkQ0qZ8").build();
 
         // 调用API进行测试
         List<ChatMessage> messages = new ArrayList<>();
@@ -35,7 +37,7 @@ public class ZhiPuAiTest {
                 .messages(messages)
                 .build();
         // 调用智谱开放平台API
-        ModelApiResponse invokeModelApiResp = client.invokeModelApi(chatCompletionRequest);
+        ModelApiResponse invokeModelApiResp = clientV4.invokeModelApi(chatCompletionRequest);
         System.out.println("model output:" + invokeModelApiResp.getData().getChoices().get(0));
     }
 }
