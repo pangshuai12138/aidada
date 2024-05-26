@@ -182,7 +182,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         return questionVOPage;
     }
 
-    // 系统提示语（固定）
+    /**
+     * AI 生成题目的系统提示语（固定）
+     */
     private static final String GENERATE_QUESTION_SYSTEM_MESSAGE = "你是一位严谨的出题专家，我会给你如下信息：\n" +
             "```\n" +
             "应用名称，\n" +
@@ -216,6 +218,13 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         String userMessage = getGenerateQuestionUserMessage(app, questionNumber, optionNumber);
         // AI 生成
         String result = aiManager.doSyncStableRequest(GENERATE_QUESTION_SYSTEM_MESSAGE, userMessage);
+        // 返回结果类似于
+        /*
+        ```json[
+        {"options":[{"value":"心理学","key":"A"},{"value":"物理学","key":"B"}],"title":"智商测试属于哪一类【应用类别】？"},
+        {"options":[{"value":"100以上","key":"A"},{"value":"200以下","key":"B"}],"title":"大多数人的智商分数在哪个范围内？"}
+        ]...
+        */
         // 截取需要的 JSON 信息
         int start = result.indexOf("[");
         int end = result.lastIndexOf("]");
@@ -226,6 +235,12 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     /**
      * 生成题目的用户消息
+     *  类似于
+     *  小学数学测验，
+     * 【【【小学三年级的数学题】】】，
+     * 得分类，
+     * 10，
+     * 3
      *
      * @param app
      * @param questionNumber
