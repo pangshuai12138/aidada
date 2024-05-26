@@ -61,26 +61,27 @@ public class CustomTestScoringStrategy implements ScoringStrategy {
         }
 
         // 遍历题目列表
-        for (QuestionContentDTO questionContentDTO : questionContent) {
-            // 遍历答案列表
-            for (String answer : choices) {
-                // 遍历题目中的选项
-                for (QuestionContentDTO.Option option : questionContentDTO.getOptions()) {
-                    // 如果答案和选项的key匹配
-                    if (option.getKey().equals(answer)) {
-                        // 获取选项的result属性
-                        String result = option.getResult();
+        for (int i = 0; i < questionContent.size(); i++){
+            QuestionContentDTO questionContentDTO =  questionContent.get(i);
+            //  获取对应题目用户选择的答案
+            String answer = choices.get(i);
+            // 遍历题目中的选项
+            for (QuestionContentDTO.Option option : questionContentDTO.getOptions()) {
+                // 如果答案和选项的key匹配
+                if (option.getKey().equals(answer)) {
+                    // 获取选项的result属性
+                    String result = option.getResult();
 
-                        // 如果result属性不在optionCount中，初始化为0
-                        if (!optionCount.containsKey(result)) {
-                            optionCount.put(result, 0);
-                        }
-
-                        // 在optionCount中增加计数
-                        optionCount.put(result, optionCount.get(result) + 1);
+                    // 如果result属性不在optionCount中，初始化为0
+                    if (!optionCount.containsKey(result)) {
+                        optionCount.put(result, 0);
                     }
+
+                    // 在optionCount中增加计数
+                    optionCount.put(result, optionCount.get(result) + 1);
                 }
             }
+
         }
 
         // 3. 遍历每种评分结果，计算哪个结果的得分更高
