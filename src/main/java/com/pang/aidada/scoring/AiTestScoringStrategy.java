@@ -19,6 +19,8 @@ import com.pang.aidada.model.entity.UserAnswer;
 import com.pang.aidada.model.vo.QuestionVO;
 import com.pang.aidada.service.QuestionService;
 import com.pang.aidada.service.ScoringResultService;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -38,6 +40,12 @@ public class AiTestScoringStrategy implements ScoringStrategy {
 
     @Resource
     private AiManager aiManager;
+
+    @Resource
+    private RedissonClient redissonClient;
+
+    // 调用AI评分方法的分布式锁的key
+    private static final String AI_SCORING_LOCK = "AI_SCORING_LOCK";
 
     /**
      * 引入本地缓存，用于缓存AI评分结果
@@ -87,46 +95,64 @@ public class AiTestScoringStrategy implements ScoringStrategy {
             return userAnswer;
         }
 
-        // 1. 根据 id 查询到题目和题目结果信息
-        Question question = questionService.getOne(
-                Wrappers.lambdaQuery(Question.class).eq(Question::getAppId, appId)
-        );
+        RLock lock = redissonClient.getLock(AI_SCORING_LOCK + cacheKey);
 
-        QuestionVO questionVO = QuestionVO.objToVo(question);
-        List<QuestionContentDTO> questionContent = questionVO.getQuestionContent();
+        try {
+            boolean tryLock = lock.tryLock(3, 15, TimeUnit.SECONDS);
+            if(!tryLock){
+                return null;
+            }
 
-        // 判断答案数量是否与题目数量一致
-        if(choices.size() != questionContent.size()){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"用户答案数量与题目数量不一致");
-        }
+            // 1. 根据 id 查询到题目和题目结果信息
+            Question question = questionService.getOne(
+                    Wrappers.lambdaQuery(Question.class).eq(Question::getAppId, appId)
+            );
 
-        // 2.调用AI获取AI评分结果
-        // 封装用户消息
-        String userMessage = getAiTestScoringUserMessage(app, questionContent, choices);
-        // 调用AI
-        String result = aiManager.doSyncStableRequest(AI_TEST_SCORING_SYSTEM_MESSAGE, userMessage);
-        // 返回结果类似于
+            QuestionVO questionVO = QuestionVO.objToVo(question);
+            List<QuestionContentDTO> questionContent = questionVO.getQuestionContent();
+
+            // 判断答案数量是否与题目数量一致
+            if(choices.size() != questionContent.size()){
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"用户答案数量与题目数量不一致");
+            }
+
+            // 2.调用AI获取AI评分结果
+            // 封装用户消息
+            String userMessage = getAiTestScoringUserMessage(app, questionContent, choices);
+            // 调用AI
+            String result = aiManager.doSyncStableRequest(AI_TEST_SCORING_SYSTEM_MESSAGE, userMessage);
+            // 返回结果类似于
         /*
         ...{
             "resultName": "INTJ",
                 "resultDesc": "INTJ被称为'策略家'或'建筑师'，是一个高度独立和具有战略思考能力的性格类型"
         }...
         */
-        // 截取需要的 JSON 信息
-        int start = result.indexOf("{");
-        int end = result.lastIndexOf("}");
-        String json = result.substring(start, end + 1);
+            // 截取需要的 JSON 信息
+            int start = result.indexOf("{");
+            int end = result.lastIndexOf("}");
+            String json = result.substring(start, end + 1);
 
-        // 将答案写入本地缓存
-        answerCacheMap.put(cacheKey,json);
+            // 将答案写入本地缓存
+            answerCacheMap.put(cacheKey,json);
 
-        // 3. 构造返回值，填充答案对象的属性
-        UserAnswer userAnswer = JSONUtil.toBean(json, UserAnswer.class);
-        userAnswer.setAppId(appId);
-        userAnswer.setAppType(app.getAppType());
-        userAnswer.setScoringStrategy(app.getScoringStrategy());
-        userAnswer.setChoices(choicesStr);
-        return userAnswer;
+            // 3. 构造返回值，填充答案对象的属性
+            UserAnswer userAnswer = JSONUtil.toBean(json, UserAnswer.class);
+            userAnswer.setAppId(appId);
+            userAnswer.setAppType(app.getAppType());
+            userAnswer.setScoringStrategy(app.getScoringStrategy());
+            userAnswer.setChoices(choicesStr);
+            return userAnswer;
+
+        } finally {
+            if(lock != null && lock.isLocked()){
+                if(lock.isHeldByCurrentThread()){
+                    lock.unlock();
+                }
+            }
+        }
+
+
     }
 
     /**
