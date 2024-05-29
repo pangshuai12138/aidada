@@ -19,6 +19,8 @@ import com.pang.aidada.model.vo.QuestionVO;
 import com.pang.aidada.service.AppService;
 import com.pang.aidada.service.QuestionService;
 import com.pang.aidada.service.UserService;
+import io.reactivex.Scheduler;
+import io.reactivex.schedulers.Schedulers;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -44,6 +46,10 @@ public class QuestionController {
 
     @Resource
     private AppService appService;
+
+    // 注入 VIP 线程池
+    @Resource
+    private Scheduler vipScheduler;
 
 
     // region 增删改查
@@ -277,7 +283,7 @@ public class QuestionController {
      */
     @GetMapping("/ai_generate/sse")
     public SseEmitter aiGenerateQuestionSSE(
-            AiGenerateQuestionRequest aiGenerateQuestionRequest) {
+            AiGenerateQuestionRequest aiGenerateQuestionRequest,HttpServletRequest request) {
         // 参数校验
         ThrowUtils.throwIf(aiGenerateQuestionRequest == null, ErrorCode.PARAMS_ERROR);
         // 获取参数
@@ -288,6 +294,14 @@ public class QuestionController {
         App app = appService.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
 
-        return questionService.aiGenerateQuestionSSE(app,questionNumber,optionNumber);
+        // 默认全局线程池
+        Scheduler scheduler = Schedulers.single();
+        User loginUser = userService.getLoginUser(request);
+        // 如果用户是 VIP，则使用定制线程池
+        if ("vip".equals(loginUser.getUserRole())) {
+            scheduler = vipScheduler;
+        }
+
+        return questionService.aiGenerateQuestionSSE(app,questionNumber,optionNumber,scheduler);
     }
 }

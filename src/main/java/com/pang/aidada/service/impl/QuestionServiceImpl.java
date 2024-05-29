@@ -239,7 +239,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     @Override
-    public SseEmitter aiGenerateQuestionSSE(App app, int questionNumber, int optionNumber) {
+    public SseEmitter aiGenerateQuestionSSE(App app, int questionNumber, int optionNumber,Scheduler scheduler) {
         // 调用AI接口前建立SSE连接对象，0 表示不超时
         SseEmitter emitter = new SseEmitter(0L);
 
@@ -254,8 +254,8 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         StringBuilder contentBuilder = new StringBuilder();
 
         modelDataFlowable
-                // 异步线程池执行
-                .observeOn(Schedulers.io())
+                // 不使用默认线程池 普通用户和VIP用户进行线程隔离
+                .observeOn(scheduler)
                 // 获取流返回的数据
                 .map(modelData -> modelData.getChoices().get(0).getDelta().getContent())
                 // 将所有的空格、换行符替换为空字符串

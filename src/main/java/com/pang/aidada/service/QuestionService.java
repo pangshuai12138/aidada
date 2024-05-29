@@ -8,6 +8,7 @@ import com.pang.aidada.model.dto.question.QuestionQueryRequest;
 import com.pang.aidada.model.entity.App;
 import com.pang.aidada.model.entity.Question;
 import com.pang.aidada.model.vo.QuestionVO;
+import io.reactivex.Scheduler;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.servlet.http.HttpServletRequest;
@@ -72,5 +73,5 @@ public interface QuestionService extends IService<Question> {
      * @param optionNumber
      * @return
      */
-    SseEmitter aiGenerateQuestionSSE(App app, int questionNumber, int optionNumber);
+    SseEmitter aiGenerateQuestionSSE(App app, int questionNumber, int optionNumber, Scheduler scheduler);
 }

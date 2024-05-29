@@ -55,7 +55,7 @@ spring:
               algorithm-expression: user_answer_$->{appId % 2}
         tables:
           user_answer:
-            actual-data-nodes: yudada.user_answer_$->{0..1}
+            actual-data-nodes: aidada.user_answer_$->{0..1}
             # 分表策略
             table-strategy:
               standard:
