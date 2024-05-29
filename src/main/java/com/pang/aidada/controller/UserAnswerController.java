@@ -1,5 +1,6 @@
 package com.pang.aidada.controller;
 
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.pang.aidada.annotation.AuthCheck;
@@ -25,6 +26,7 @@ import com.pang.aidada.service.UserAnswerService;
 import com.pang.aidada.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -80,9 +82,14 @@ public class UserAnswerController {
         // 填充默认值
         User loginUser = userService.getLoginUser(request);
         userAnswer.setUserId(loginUser.getId());
-        // 写入数据库
-        boolean result = userAnswerService.save(userAnswer);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        try {
+            // 写入数据库
+            boolean result = userAnswerService.save(userAnswer);
+            ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        } catch (DuplicateKeyException e){
+            // 忽略 唯一键重复问题
+            log.info("用户答题重复提交，userAnswer:{}", userAnswer);
+        }
         // 返回新写入的数据 id
         long newUserAnswerId = userAnswer.getId();
         // 调用评分模块
@@ -97,6 +104,15 @@ public class UserAnswerController {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "评分错误");
         }
         return ResultUtils.success(newUserAnswerId);
+    }
+
+    /**
+     * 生成雪花算法的id，用于用户提交答案接口 的幂等性功能实现
+     * @return
+     */
+    @GetMapping("/generate/id")
+    public BaseResponse<Long> generateUserAnswerId() {
+        return ResultUtils.success(IdUtil.getSnowflakeNextId());
     }
 
     /**
