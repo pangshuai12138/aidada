@@ -1,180 +1,109 @@
-# SpringBoot 项目初始模板
+# AI答答 - AI 答题应用平台
+
+
+## 一、项目介绍
+
+AI答答是一款基于 Spring Boot + Redis + ChatGLM + RxJava + SSE 的 **AI 答题应用平台。**
+
+用户可以基于 AI 快速制作并发布答题应用，支持检索、分享、在线答题并基于 AI 得到回答总结；管理员可以集中管理和审核应用。
+
+什么是答题应用？
+
+我相信很多同学都做过 MBTI 性格测试，相当于一份试卷里有很多道题目，大家根据题目选择选项，最终提交答案并得到性格分析结果。
+
+在本项目中，不仅会实现一个类似 `MBTI 性格测评的答题小程序`。
+
+还会再上升一个层次，开发 `答题应用平台`，所有人都可以在平台上制作发布自己的答题应用，畅玩别人的答题应用。
 
 
 
-基于 Java SpringBoot 的项目初始模板，整合了常用框架和主流业务的示例代码。
+### 项目二大阶段
 
-只需 1 分钟即可完成内容网站的后端！！！大家还可以在此基础上快速开发自己的项目。
+项目分为两个阶段：
 
-[toc]
+1）第一阶段，上升一个层次，开发 `答题应用平台`。用户可以通过上传题目和自定义打分规则，创建答题应用，供其他用户使用。该阶段涉及项目从 0 到 1 的开发。
 
-## 模板特点
-
-### 主流框架 & 特性
-
-- Spring Boot 2.7.x（贼新）
-- Spring MVC
-- MyBatis + MyBatis Plus 数据访问（开启分页）
-- Spring Boot 调试工具和项目处理器
-- Spring AOP 切面编程
-- Spring Scheduler 定时任务
-- Spring 事务注解
-
-### 数据存储
-
-- MySQL 数据库
-- Redis 内存数据库
-- Elasticsearch 搜索引擎
-- 腾讯云 COS 对象存储
-
-### 工具类
-
-- Easy Excel 表格处理
-- Hutool 工具库
-- Apache Commons Lang3 工具类
-- Lombok 注解
-
-### 业务特性
-
-- 业务代码生成器（支持自动生成 Service、Controller、数据模型代码）
-- Spring Session Redis 分布式登录
-- 全局请求响应拦截器（记录日志）
-- 全局异常处理器
-- 自定义错误码
-- 封装通用响应类
-- Swagger + Knife4j 接口文档
-- 自定义权限注解 + 全局校验
-- 全局跨域处理
-- 长整数丢失精度解决
-- 多环境配置
+2）第二阶段，让 AI 为平台赋能，做一个 `AI 智能答题应用平台`。用户只需设定主题，就能通过 AI 生成题目、用 AI 分析用户答案，极大降低创建答题应用的成本。
 
 
-## 业务功能
-
-- 提供示例 SQL（用户、帖子、帖子点赞、帖子收藏表）
-- 用户登录、注册、注销、更新、检索、权限管理
-- 帖子创建、删除、编辑、更新、数据库检索、ES 灵活检索
-- 帖子点赞、取消点赞
-- 帖子收藏、取消收藏、检索已收藏帖子
-- 帖子全量同步 ES、增量同步 ES 定时任务
-- 支持微信开放平台登录
-- 支持微信公众号订阅、收发消息、设置菜单
-- 支持分业务的文件上传
-
-### 单元测试
-
-- JUnit5 单元测试
-- 示例单元测试类
-
-### 架构设计
-
-- 合理分层
 
 
-## 快速上手
-
-> 所有需要修改的地方都标记了 `todo`，便于大家找到修改的位置~
-
-### MySQL 数据库
-
-1）修改 `application.yml` 的数据库配置为你自己的：
-
-```yml
-spring:
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/aidada
-    username: root
-    password: 123456
-```
-
-2）执行 `sql/create_table.sql` 中的数据库语句，自动创建库表
-
-3）启动项目，访问 `http://localhost:8101/api/doc.html` 即可打开接口文档，不需要写前端就能在线调试接口了~
-
-![](doc/swagger.png)
-
-### Redis 分布式登录
-
-1）修改 `application.yml` 的 Redis 配置为你自己的：
-
-```yml
-spring:
-  redis:
-    database: 1
-    host: localhost
-    port: 6379
-    timeout: 5000
-    password: 123456
-```
-
-2）修改 `application.yml` 中的 session 存储方式：
-
-```yml
-spring:
-  session:
-    store-type: redis
-```
-
-3）移除 `MainApplication` 类开头 `@SpringBootApplication` 注解内的 exclude 参数：
-
-修改前：
-
-```java
-@SpringBootApplication(exclude = {RedisAutoConfiguration.class})
-```
-
-修改后：
 
 
-```java
-@SpringBootApplication
-```
 
-### Elasticsearch 搜索引擎
 
-1）修改 `application.yml` 的 Elasticsearch 配置为你自己的：
+## 二、核心业务流程
 
-```yml
-spring:
-  elasticsearch:
-    uris: http://localhost:9200
-    username: root
-    password: 123456
-```
+如下图：
 
-2）复制 `sql/post_es_mapping.json` 文件中的内容，通过调用 Elasticsearch 的接口或者 Kibana Dev Tools 来创建索引（相当于数据库建表）
+![](https://pic.yupi.icu/1/yuque_diagram%20(1).jpg)
 
-```
-PUT post_v1
-{
- 参数见 sql/post_es_mapping.json 文件
-}
-```
 
-这步不会操作的话需要补充下 Elasticsearch 的知识，或者自行百度一下~
 
-3）开启同步任务，将数据库的帖子同步到 Elasticsearch
 
-找到 job 目录下的 `FullSyncPostToEs` 和 `IncSyncPostToEs` 文件，取消掉 `@Component` 注解的注释，再次执行程序即可触发同步：
 
-```java
-// todo 取消注释开启任务
-//@Component
-```
+## 三、项目功能梳理
 
-### 业务代码生成器
 
-支持自动生成 Service、Controller、数据模型代码，配合 MyBatisX 插件，可以快速开发增删改查等实用基础功能。
 
-找到 `generate.CodeGenerator` 类，修改生成参数和生成路径，并且支持注释掉不需要的生成逻辑，然后运行即可。
+### 平台
 
-```
-// 指定生成参数
-String packageName = "com.pang.aidada";
-String dataName = "用户评论";
-String dataKey = "userComment";
-String upperDataKey = "UserComment";
-```
+- 用户模块
 
-生成代码后，可以移动到实际项目中，并且按照 `// todo` 注释的提示来针对自己的业务需求进行修改。
+- - 注册
+- 登录
+- 管理用户 - 增删改查（仅管理员可用）
+
+- 应用模块
+
+- - 创建应用（名称、描述、上传图片、应用类型）
+- 修改应用（用户）
+- 审核发布和下架应用（管理员）
+- 管理应用 - 增删改查（管理员）
+
+- 题目模块
+
+- - 创建题目（名称、选项）
+- 修改题目
+- 删除题目
+- **AI 生成题目**
+
+- 评分模块
+
+- - 多种评分策略
+- 创建评分结果
+- 题目得分设置
+
+- 回答模块
+
+- - 提交选择
+- 回答记录
+- **AI 分析总结回答**
+
+
+
+## 技术选型
+
+### 开发工具
+
+- 后端 IDE：JetBrains IDEA
+
+
+### 后端
+
+- Java Spring Boot 开发框架（万用后端模板）
+- 存储层：MySQL 数据库 + Redis 缓存
+- MyBatis-Plus 及 MyBatis X 自动生成
+- Redission 分布式锁
+- Caffeine 本地缓存
+- ⭐️ 基于 ChatGLM 大模型实现 AI 能力
+- ⭐️ RxJava 响应式框架 + 多线程 / 线程池实战
+- ⭐️ Shardingsphere 分库分表 + 分布式 ID 雪花算法
+- ⭐️ SSE 服务端推送
+- ⭐️ 多种设计模式
+
+
+
+## 架构设计
+
+![](https://pic.yupi.icu/1/1714039839444-2a32cd7e-6a9b-4b06-98b1-e22af6ef7574-20240507222443038.png)
